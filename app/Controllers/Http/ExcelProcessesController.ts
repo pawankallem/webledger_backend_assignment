@@ -167,7 +167,7 @@ export default class ExcelProcessesController {
 
               await newClient.save();
             } catch (error) {
-              console.log("Error creating clients: ", error);
+              console.log("error: ", error);
             }
           }
         } else if (sheetName === "Banks") {
@@ -223,10 +223,56 @@ export default class ExcelProcessesController {
 
               await newBank.save();
             } catch (error) {
-              console.log(
-                "🚀 ~ file: ExcelProcessesController.ts:181 ~ error:",
-                error
+              console.log("error: ", error);
+            }
+          }
+        } else if (sheetName === "Addresses") {
+          for (const address of sheetData) {
+            try {
+              const clientNumber = address.client_number;
+              const address1 = validation("name", address.address_1);
+              const address2 = validation("name", address.address_2);
+              const city = validation("name", address.city);
+              const state = address.state;
+              const pincode = address.pincode;
+
+              if (!Number(pincode)) {
+                continue;
+              }
+
+              const dbAddress = await Address.query()
+                .where("address_line_1", address1)
+                .where("address_line_2", address2)
+                .first();
+
+              if (dbAddress) {
+                continue;
+              }
+
+              const common = commonclients?.find(
+                (ele) => ele.client_number === clientNumber
               );
+
+              const bclient = await Client.findBy(
+                "name",
+                common?.legal_name ? common?.legal_name : common.Name
+              );
+              if (!bclient) {
+                console.log("No corresponding client found for bank:", address);
+                continue;
+              }
+
+              const newAddress = new Address();
+              newAddress.clientId = bclient.id;
+              newAddress.addressLine1 = address1;
+              newAddress.addressLine2 = address2;
+              newAddress.city = city;
+              newAddress.state = state;
+              newAddress.zip = pincode;
+
+              await newAddress.save();
+            } catch (error) {
+              console.log("error: ", error);
             }
           }
         }
