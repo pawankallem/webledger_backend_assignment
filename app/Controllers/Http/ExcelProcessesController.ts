@@ -42,7 +42,7 @@ export default class ExcelProcessesController {
               /\w\S*/g,
               (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
             );
-            return normalizedName.replace(/[^\w\s]|(\s{2,})|,/g, "");
+            return normalizedName.replace(/[^\w\s]|(\s{2,})|,/g, "").trim();
           case "email":
             let email = text;
             let normalizedEmail = email.replace(
@@ -104,14 +104,14 @@ export default class ExcelProcessesController {
               const gstin = client.gstin;
               const pan = validation("pan", client.pan);
 
-              const db = await Client.query()
+              const dbCheck = await Client.query()
                 .where("name", name)
                 .where("email", email)
                 .where("phoneNumber", phone)
                 .where("pan", pan)
                 .first();
 
-              if (db) {
+              if (dbCheck) {
                 errorData.push({
                   status: "Incompleted",
                   message: "Data already exist!",
@@ -168,6 +168,65 @@ export default class ExcelProcessesController {
               await newClient.save();
             } catch (error) {
               console.log("Error creating clients: ", error);
+            }
+          }
+        } else if (sheetName === "Banks") {
+          for (const bank of sheetData) {
+            try {
+              const clientNumber = bank.client_number;
+              const bankName = validation("name", bank["Bank Name"]);
+              const ifsc = bank.IFSC;
+              const accountNo = bank.account_no;
+              const accountHolderName = validation(
+                "name",
+                bank.account_holder_name
+              );
+              const accountType = bank.account_type;
+              const branchName = bank.branch_name;
+
+              if (!Number(accountNo)) {
+                continue;
+              }
+              const clientAccountNumber = await Bank.findBy(
+                "account_number",
+                accountNo
+              );
+              if (clientAccountNumber) {
+                continue;
+              }
+              const clientBankName = await Bank.findBy("bank_name", bankName);
+              if (clientBankName) {
+                continue;
+              }
+              const bankClient = await Client.findBy("name", accountHolderName);
+              if (!bankClient) {
+                continue;
+              }
+              const dbCheck = await Bank.query()
+                .where("client_id", bankClient.id)
+                .where("bank_name", bankName)
+                .where("account_holder_name", accountHolderName)
+                .where("account_number", accountNo)
+                .first();
+
+              if (dbCheck) {
+                continue;
+              }
+
+              const newBank = new Bank();
+              newBank.clientId = bankClient.id;
+              newBank.bankName = bankName;
+              newBank.accountNumber = accountNo;
+              newBank.accountHolderName = accountHolderName;
+              newBank.ifscCode = ifsc;
+              newBank.city = branchName;
+
+              await newBank.save();
+            } catch (error) {
+              console.log(
+                "🚀 ~ file: ExcelProcessesController.ts:181 ~ error:",
+                error
+              );
             }
           }
         }
