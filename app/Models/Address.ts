@@ -9,10 +9,10 @@ export default class Address extends BaseModel {
   @column()
   public clientId: number
 
-  @column()
+  @column({ columnName: 'address_line_1' })
   public addressLine1: string
 
-  @column()
+  @column({ columnName: 'address_line_2' })
   public addressLine2?: string
 
   @column()
